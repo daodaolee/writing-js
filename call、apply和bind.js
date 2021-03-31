@@ -45,7 +45,7 @@ cat.eatFish.apply(dog, ["狗"]);
  * 奥特曼.打小怪兽.call(猫, 小怪兽)
  */
 ultraman.fight.call(cat, "猫");
-ultraman.fight.apply(cat, "猫");
+ultraman.fight.apply(cat, ["猫"]);
 
 /**
  * 手写call
@@ -91,7 +91,6 @@ Function.prototype.defineApply = function (context, arr) {
     //如果有参数就执行
     result = context.fn(...arr);
   }
-
   delete context.fn;
   return result;
 };
@@ -106,26 +105,35 @@ cat.eatFish.defineApply(dog, ["三文鱼", "金枪鱼", "鲨鱼"]);
  * 所以当返回函数作为构造函数时，this默认指向该实例，就可以让实例获得来自绑定函数的值，如果实例是null这种特殊情况，实例就指向this
  * 而当返回函数作为普通函数时，this默认指向window，我们就将它指向上下文context
  */
-Function.prototype.defineBind = function (context) {
-  let _this = this;
-  // 获取传的参数
-  let _args = [...arguments].slice(1);
-
-  // 空函数，用来中转一下resultFn的原型
-  let tempFn = function () {};
-
-  let resultFn = function () {
-    // 原参数和返回函数的新参数合并在一起
-    let newArg = Array.prototype.slice.call(arguments);
-    // 返回函数
-    return _this.apply(
-      this instanceof tempFn ? this : context,
-      args.concat(newArg)
-    );
+ Function.prototype.defineBind = function (obj) {
+  if (typeof this !== "function") {
+    throw new Error("Function.prototype.bind - what is trying to be bound is not callable");
   };
+  let args = Array.prototype.slice.call(arguments, 1);
+  let fn = this;
+  //创建中介函数
+  let fn_ = function () {};
+  // 上面说的Fn2就是这里的bound
+  let bound = function () {
+    let params = Array.prototype.slice.call(arguments);
+    //通过constructor判断调用方式，为true this指向实例，否则为obj
+    fn.apply(this.constructor === fn ? this : obj, args.concat(params));
+  };
+  fn_.prototype = fn.prototype;
+  bound.prototype = new fn_();
+  return bound;
+};
 
-  // 保证修改resultFn的原型不会篡改context的原型
-  tempFn.prototype = this.prototype;
-  resultFn.prototype = new tempFn();
-  return resultFn;
+// es6的bind实现
+Function.prototype.defineBind = function (context, ...rest) {
+  if (typeof this !== "function") {
+    throw new Error("Function.prototype.bind - what is trying to be bound is not callable");
+  }
+  var self = this;
+  return function F(...args) {
+    if (this instanceof F) {
+      return new self(...rest, ...args);
+    }
+    return self.apply(context, rest.concat(args));
+  };
 };
